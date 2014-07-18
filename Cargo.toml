@@ -1,0 +1,9 @@
+[package]
+
+name = "bfc"
+version = "0.1.0"
+authors = [ "owen.rodley@gmail.com" ]
+
+[[bin]]
+
+name = "bfc"
