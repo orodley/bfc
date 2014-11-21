@@ -4,7 +4,7 @@ use std::io;
 
 type AST = Vec<ASTNode>;
 
-#[deriving(Show)]
+#[deriving(Show, Clone)]
 enum ASTNode {
     MovePointer(int),
     ChangeValue(int),
@@ -101,4 +101,36 @@ fn read_ast(reader: &mut Parser) -> Option<Box<AST>> {
     }
 
     Some(box ast)
+}
+
+/// Merges together adjacent +'s and -'s, and <'s and >'s
+pub fn optimize(ast: &AST) -> Box<AST> {
+    let mut new_ast = Vec::new();
+
+    let mut prev = OutputValue; // start on something that doesn't merge
+    for token in ast.iter() {
+        match token {
+            &MovePointer(x) => match prev {
+                MovePointer(y) => {
+                    new_ast.pop();
+                    new_ast.push(MovePointer(x + y));
+                }
+                _ => new_ast.push(MovePointer(x)),
+            },
+            &ChangeValue(x) => match prev {
+                ChangeValue(y) => {
+                    new_ast.pop();
+                    new_ast.push(ChangeValue(x + y));
+                }
+                _ => new_ast.push(ChangeValue(x)),
+            },
+            &Block(ref ast) => new_ast.push(Block(optimize(&**ast))),
+            _ => new_ast.push((*token).clone()),
+        }
+
+        // unwrap is safe as all of the above push a value
+        prev = new_ast.last().unwrap().clone();
+    }
+
+    box new_ast
 }
