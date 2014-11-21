@@ -28,7 +28,7 @@ impl Parser {
     }
 
     fn read_char(&mut self) -> Option<u8> {
-        if self.pos >= self.text.len() {
+        if self.is_done() {
             None
         } else {
             let c = self.text[self.pos];
@@ -37,12 +37,17 @@ impl Parser {
         }
     }
 
-    fn peek_char(&self) -> Option<u8> {
-        if self.pos >= self.text.len() {
+    fn prev_char(&self) -> Option<u8> {
+        if self.pos == 0 {
             None
         } else {
-            Some(self.text[self.pos])
+            Some(self.text[self.pos - 1])
         }
+    }
+
+    #[inline]
+    fn is_done(&self) -> bool {
+        self.pos >= self.text.len()
     }
 }
 
@@ -77,7 +82,18 @@ fn read_ast(reader: &mut Parser) -> Option<Box<AST>> {
                         Some(block_ast) => ast.push(Block(block_ast)),
                         None => return None
                     }
+                    
+                    match reader.prev_char() {
+                        Some(c) => {
+                            if (c as char) != ']' {
+                                // TODO: error about unmatched '['
+                                return None;
+                            }
+                        }
+                        None => return None,
+                    }
                 }
+                ']' => break,
                 _ => (),
             },
             None => break,
