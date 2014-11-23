@@ -15,34 +15,34 @@ enum ASTNode {
 }
 
 struct Parser {
-    text: Vec<u8>,
+    text: String,
     pos: uint,
 }
 
 impl Parser {
     fn new(file: &mut io::File) -> io::IoResult<Parser> {
-        let text = try!(file.read_to_end());
+        let text = try!(file.read_to_string());
         Ok(Parser {
             text: text,
             pos: 0,
         })
     }
 
-    fn read_char(&mut self) -> Option<u8> {
+    fn read_char(&mut self) -> Option<char> {
         if self.is_done() {
             None
         } else {
-            let c = self.text[self.pos];
+            let c = self.text.as_slice().char_at(self.pos);
             self.pos += 1;
             Some(c)
         }
     }
 
-    fn prev_char(&self) -> Option<u8> {
+    fn prev_char(&self) -> Option<char> {
         if self.pos == 0 {
             None
         } else {
-            Some(self.text[self.pos - 1])
+            Some(self.text.as_slice().char_at(self.pos - 1))
         }
     }
 
@@ -71,7 +71,7 @@ fn read_ast(reader: &mut Parser) -> Option<Box<AST>> {
     let mut ast = Vec::new();
     loop {
         match reader.read_char() {
-            Some(ch) => match ch as char {
+            Some(ch) => match ch {
                 '>' => ast.push(MovePointer(1)),
                 '<' => ast.push(MovePointer(-1)),
                 '+' => ast.push(ChangeValue(1)),
@@ -86,7 +86,7 @@ fn read_ast(reader: &mut Parser) -> Option<Box<AST>> {
                     
                     match reader.prev_char() {
                         Some(c) => {
-                            if (c as char) != ']' {
+                            if c != ']' {
                                 // TODO: error about unmatched '['
                                 return None;
                             }
