@@ -1,6 +1,7 @@
 extern crate "rustc_llvm" as llvm;
 
 use std::io;
+use std::iter::AdditiveIterator;
 
 type AST = Vec<ASTNode>;
 
@@ -133,4 +134,16 @@ pub fn optimize(ast: &AST) -> Box<AST> {
     }
 
     box new_ast
+}
+
+pub fn size(ast: &AST) -> uint {
+    let mut sum = 0u;
+    for token in ast.iter() {
+        sum += match token {
+            &Block(ref ast) => size(&**ast) + 2,
+            _ => 1
+        }
+    }
+
+    sum
 }
