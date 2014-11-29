@@ -1,4 +1,4 @@
-.comm memory, 1024
+.comm memory, 30000
 .comm ptr 8, 8
 
 .text
