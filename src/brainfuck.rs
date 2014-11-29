@@ -1,7 +1,6 @@
 extern crate "rustc_llvm" as llvm;
 
 use std::io;
-use std::iter::AdditiveIterator;
 
 type AST = Vec<ASTNode>;
 
@@ -136,14 +135,55 @@ pub fn optimize(ast: &AST) -> Box<AST> {
     box new_ast
 }
 
-pub fn size(ast: &AST) -> uint {
-    let mut sum = 0u;
-    for token in ast.iter() {
-        sum += match token {
-            &Block(ref ast) => size(&**ast) + 2,
-            _ => 1
+// Code generation
+struct Codegen<'a> {
+    writer: &'a mut io::Writer+'a,
+    next_block: int,
+}
+
+static HEADER: &'static str = include_str!("header.s");
+static FOOTER: &'static str = include_str!("footer.s");
+
+pub fn write_asm(writer: &mut io::Writer, ast: &AST) -> io::IoResult<()> {
+    let mut codegen = Codegen{ writer: writer, next_block: 0 };
+    try!(codegen.writer.write_line(HEADER));
+    try!(write_asm_for_ast(&mut codegen, ast));
+    try!(codegen.writer.write_line(FOOTER));
+    Ok(())
+}
+
+fn write_asm_for_ast(codegen: &mut Codegen, ast: &AST) -> io::IoResult<()> {
+    for node in ast.iter() {
+        try!(write_asm_for_node(codegen, node));
+    }
+
+    Ok(())
+}
+
+fn write_asm_for_node(codegen: &mut Codegen, node: &ASTNode) -> io::IoResult<()> {
+    match *node {
+        MovePointer(x) =>
+            try!(writeln!(codegen.writer, "    addq    ${}, (ptr)", x)),
+        ChangeValue(x) => {
+            try!(writeln!(codegen.writer, "    movq    (ptr), %rax"));
+            try!(writeln!(codegen.writer, "    addb    ${}, (%rax)", x));
+        }
+        OutputValue =>
+            try!(codegen.writer.write_line("    call    write")),
+        InputValue =>
+            try!(codegen.writer.write_line("    call    read")),
+        Block(ref block) => {
+            let n = codegen.next_block;
+            codegen.next_block += 1;
+            try!(writeln!(codegen.writer, "block{}_start:", n));
+            try!(writeln!(codegen.writer, "    movq    (ptr), %rax"));
+            try!(writeln!(codegen.writer, "    cmpb    $0, (%rax)"));
+            try!(writeln!(codegen.writer, "    je      block{}_end", n));
+            try!(write_asm_for_ast(codegen, &**block));
+            try!(writeln!(codegen.writer, "    jmp     block{}_start", n));
+            try!(writeln!(codegen.writer, "block{}_end:", n));
         }
     }
 
-    sum
+    Ok(())
 }
